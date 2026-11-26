@@ -101,7 +101,7 @@ NEXT_PUBLIC_APP_URL=https://hub-aprendizaje-fes.web.app
 
 ```bash
 # Instalar Firebase CLI
-npm install -g firebase-tools
+pnpm add -g firebase-tools
 
 # Login
 firebase login
