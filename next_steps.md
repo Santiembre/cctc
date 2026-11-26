@@ -13,7 +13,6 @@ gcloud projects create hub-aprendizaje-fes --name="Hub de Aprendizaje FES Acatl�
 gcloud services enable \
   firebase.googleapis.com \
   firestore.googleapis.com \
-  firebasestorage.googleapis.com \
   firebaseauth.googleapis.com \
   aiplatform.googleapis.com \
   run.googleapis.com \
@@ -47,10 +46,6 @@ gcloud projects add-iam-policy-binding hub-aprendizaje-fes \
 
 gcloud projects add-iam-policy-binding hub-aprendizaje-fes \
   --member="serviceAccount:hub-admin@hub-aprendizaje-fes.iam.gserviceaccount.com" \
-  --role="roles/storage.admin"
-
-gcloud projects add-iam-policy-binding hub-aprendizaje-fes \
-  --member="serviceAccount:hub-admin@hub-aprendizaje-fes.iam.gserviceaccount.com" \
   --role="roles/firebaseauth.admin"
 
 gcloud projects add-iam-policy-binding hub-aprendizaje-fes \
@@ -61,7 +56,12 @@ gcloud projects add-iam-policy-binding hub-aprendizaje-fes \
 ### 1.6 Configurar Vertex AI / Gemini
 ```bash
 # Verificar que el modelo está disponible en la región
-gcloud ai models list --region=us-central1 --filter="displayName:gemini-2.5-flash"
+# gemini-2.5-flash ya no está disponible para proyectos nuevos; se usa Gemini 3 Flash en "global".
+# Prueba rápida de acceso (debe imprimir 200):
+curl -s -o /dev/null -w "%{http_code}" -X POST \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" \
+  "https://aiplatform.googleapis.com/v1/projects/hub-aprendizaje-fes/locations/global/publishers/google/models/gemini-3-flash-preview:countTokens" \
+  -d '{"contents":[{"role":"user","parts":[{"text":"hola"}]}]}'
 ```
 
 ---
@@ -89,11 +89,8 @@ FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE K
 
 # Vertex AI / Gemini
 GOOGLE_CLOUD_PROJECT=hub-aprendizaje-fes
-GOOGLE_CLOUD_LOCATION=us-central1
-GEMINI_MODEL=gemini-2.5-flash
-
-# Cloud Storage
-STORAGE_BUCKET=hub-aprendizaje-fes.appspot.com
+GOOGLE_CLOUD_LOCATION=global
+GEMINI_MODEL=gemini-3-flash-preview
 
 # App URL (para SSR fetching)
 NEXT_PUBLIC_APP_URL=https://hub-aprendizaje-fes.web.app
@@ -101,7 +98,10 @@ NEXT_PUBLIC_APP_URL=https://hub-aprendizaje-fes.web.app
 
 ---
 
-## 3. Desplegar Reglas de Firestore y Storage
+## 3. Desplegar Reglas e Índices de Firestore
+
+> **Sin Cloud Storage:** los PDFs y carteles se mandan directo a Gemini desde `/api/activities/extract`
+> (multipart, máx. 10 MB) y no se guardan. Por eso no se necesita activar Storage (plan de pago).
 
 ```bash
 # Instalar Firebase CLI
@@ -114,7 +114,7 @@ firebase login
 firebase init
 
 # Desplegar reglas e índices
-firebase deploy --only firestore:rules,firestore:indexes,storage
+firebase deploy --only firestore:rules,firestore:indexes
 ```
 
 ---
@@ -152,7 +152,9 @@ gcloud projects add-iam-policy-binding hub-aprendizaje-fes \
 ```
 
 ### 4.3 Desplegar a Cloud Run
-Corre con la service account `hub-admin`, así Vertex AI (Gemini) y Storage usan sus roles de §1.5.
+Corre con la service account `hub-admin`, así Vertex AI (Gemini) usa su rol de §1.5.
+Si Gemini está en **otro proyecto** que Firebase, dale a `hub-admin` el rol `roles/aiplatform.user` en ese proyecto
+y usa su ID en `GOOGLE_CLOUD_PROJECT`. Los modelos Gemini 3.x solo están en la ubicación `global`.
 ```bash
 gcloud run deploy hub-aprendizaje \
   --image=us-central1-docker.pkg.dev/hub-aprendizaje-fes/hub-aprendizaje/hub-aprendizaje:latest \
@@ -160,7 +162,7 @@ gcloud run deploy hub-aprendizaje \
   --region=us-central1 \
   --service-account=hub-admin@hub-aprendizaje-fes.iam.gserviceaccount.com \
   --allow-unauthenticated \
-  --set-env-vars="FIREBASE_ADMIN_PROJECT_ID=hub-aprendizaje-fes,GOOGLE_CLOUD_PROJECT=hub-aprendizaje-fes,GOOGLE_CLOUD_LOCATION=us-central1,GEMINI_MODEL=gemini-2.5-flash,STORAGE_BUCKET=hub-aprendizaje-fes.appspot.com" \
+  --set-env-vars="FIREBASE_ADMIN_PROJECT_ID=hub-aprendizaje-fes,GOOGLE_CLOUD_PROJECT=hub-aprendizaje-fes,GOOGLE_CLOUD_LOCATION=global,GEMINI_MODEL=gemini-3-flash-preview" \
   --set-secrets="FIREBASE_ADMIN_PRIVATE_KEY=firebase-admin-key:latest,FIREBASE_ADMIN_CLIENT_EMAIL=firebase-admin-email:latest" \
   --memory=512Mi \
   --cpu=1 \
@@ -244,7 +246,7 @@ gcloud logging write "hub-aprendizaje-errors" \
 - [ ] Organizador sube PDF → IA extrae → revisa → publica
 - [ ] Admin ve organizadores pendientes y aprueba
 - [ ] Favoritos y recordatorios funcionan
-- [ ] URLs firmadas de subida expiran a 15 min
+- [ ] Archivos de más de 10 MB o de otro tipo (no PDF/JPG/PNG/WebP) se rechazan
 - [ ] Reglas de Firestore bloquean acceso no autorizado
 
 ### 8.2 Pruebas de carga

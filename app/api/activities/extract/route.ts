@@ -1,57 +1,22 @@
-import { VertexAI } from "@google-cloud/vertexai";
 import { Timestamp } from "firebase-admin/firestore";
 import type { NextRequest } from "next/server";
+import {
+  esTipoArchivoIA,
+  extraerActividadDeArchivo,
+  TAMANO_MAXIMO_BYTES,
+  TAMANO_MAXIMO_MB,
+} from "@/lib/ai/gemini";
 import { getServerSession } from "@/lib/api/auth";
-import { handleApiError, success } from "@/lib/api/response";
-import { extractRequestSchema, validateRequest } from "@/lib/api/validation";
-import { getAdminDb, getAdminStorage } from "@/lib/firebase/admin";
+import { error, handleApiError, success } from "@/lib/api/response";
+import { getAdminDb } from "@/lib/firebase/admin";
+import { serializeTimestamps } from "@/lib/serialization";
 
-const SYSTEM_INSTRUCTION = `Eres un asistente que extrae información de carteles y PDFs de actividades académicas (talleres, cursos, clubes) para una universidad. 
-Extrae TODOS los campos posibles. Si un campo no aparece, omítelo (no lo inventes). 
-Para fechas, usa ISO 8601. Para horarios, usa HH:mm (24h).
-tipo: "taller" (corta duración, 1-3 sesiones), "curso" (múltiples sesiones, semanas/meses), "club" (recurrente semanal).
-modalidad: "presencial", "virtual", "hibrido".
-moneda: "MXN", "USD", "GRATIS".
-Devuelve SOLO el JSON válido con esta estructura:
-{
-  "titulo": "string",
-  "tipo": "taller|curso|club",
-  "area": "string",
-  "descripcion": "string",
-  "modalidad": "presencial|virtual|hibrido",
-  "sede": "string",
-  "enlaceVirtual": "string",
-  "cupo": number,
-  "costo": number,
-  "moneda": "MXN|USD|GRATIS",
-  "requisitos": "string",
-  "enlaceInscripcion": "string",
-  "etiquetas": ["string"],
-  "sesiones": [{"fecha": "ISO8601", "horaInicio": "HH:mm", "horaFin": "HH:mm", "tema": "string", "sede": "string", "enlaceVirtual": "string"}],
-  "horarios": [{"diaSemana": 0-6, "horaInicio": "HH:mm", "horaFin": "HH:mm", "sede": "string", "enlaceVirtual": "string"}],
-  "fechaInicio": "ISO8601",
-  "fechaFin": "ISO8601"
-}`;
+const HTTP_SOLICITUD_INVALIDA = 400;
+const HTTP_DEMASIADO_GRANDE = 413;
+const HTTP_TIPO_NO_SOPORTADO = 415;
 
-function getGenerativeModel() {
-  const project = process.env.GOOGLE_CLOUD_PROJECT;
-  const location = process.env.GOOGLE_CLOUD_LOCATION;
-  const model = process.env.GEMINI_MODEL;
-
-  if (!project || !location || !model) {
-    throw new Error("Vertex AI credentials not configured");
-  }
-
-  const vertexAI = new VertexAI({ project, location });
-  return vertexAI.getGenerativeModel({
-    model,
-    generationConfig: {
-      responseMimeType: "application/json",
-    },
-    systemInstruction: SYSTEM_INSTRUCTION,
-  });
-}
-
+// POST multipart/form-data con el campo "archivo" (PDF o imagen del cartel).
+// El archivo va directo a Gemini; no se guarda en Cloud Storage.
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession();
@@ -63,40 +28,37 @@ export async function POST(request: NextRequest) {
       return handleApiError(new Error("FORBIDDEN"));
     }
 
-    const body = await request.json();
-    const { filePath } = validateRequest(extractRequestSchema, body);
+    let formulario: FormData;
+    try {
+      formulario = await request.formData();
+    } catch {
+      return error(
+        'Envía el archivo como multipart/form-data en el campo "archivo".',
+        HTTP_SOLICITUD_INVALIDA,
+      );
+    }
 
-    // Download file from Cloud Storage
-    const adminStorage = getAdminStorage();
-    const bucket = adminStorage.bucket(process.env.STORAGE_BUCKET!);
-    const file = bucket.file(filePath);
-    const [buffer] = await file.download();
-    const mimeType = filePath.endsWith(".pdf")
-      ? "application/pdf"
-      : filePath.match(/\.(jpg|jpeg)$/i)
-        ? "image/jpeg"
-        : filePath.match(/\.png$/i)
-          ? "image/png"
-          : "image/webp";
+    const archivo = formulario.get("archivo");
+    if (!(archivo instanceof File) || archivo.size === 0) {
+      return error("No se recibió ningún archivo.", HTTP_SOLICITUD_INVALIDA);
+    }
+    const mimeType = archivo.type;
+    if (!esTipoArchivoIA(mimeType)) {
+      return error(
+        "Tipo de archivo no permitido. Usa PDF, JPG, PNG o WebP.",
+        HTTP_TIPO_NO_SOPORTADO,
+      );
+    }
+    if (archivo.size > TAMANO_MAXIMO_BYTES) {
+      return error(
+        `El archivo excede ${TAMANO_MAXIMO_MB} MB.`,
+        HTTP_DEMASIADO_GRANDE,
+      );
+    }
 
-    // Call Gemini
-    const generativeModel = getGenerativeModel();
-    const result = await generativeModel.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { mimeType, data: buffer.toString("base64") } },
-            {
-              text: "Extrae la información de esta actividad y devuelve el JSON según el esquema.",
-            },
-          ],
-        },
-      ],
-    });
-
-    const rawText =
-      result.response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    // Call Gemini (el archivo va inline en la petición)
+    const buffer = Buffer.from(await archivo.arrayBuffer());
+    const rawText = await extraerActividadDeArchivo(buffer, mimeType);
     let extracted: any;
     try {
       extracted = JSON.parse(rawText);
@@ -164,7 +126,9 @@ export async function POST(request: NextRequest) {
       confianza: confidence,
       camposFaltantes: allFields.filter((f) => !extracted[f]),
       textoCrudo: rawText,
-      archivoPath: filePath,
+      archivoNombre: archivo.name,
+      archivoTipo: mimeType,
+      archivoBytes: archivo.size,
       createdAt: Timestamp.now(),
     });
 
@@ -178,7 +142,7 @@ export async function POST(request: NextRequest) {
     return success({
       extractionId: extractionRef.id,
       draftId: draftRef.id,
-      actividad: extracted,
+      actividad: serializeTimestamps(extracted),
       confianza: confidence,
     });
   } catch (err) {

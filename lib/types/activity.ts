@@ -94,7 +94,10 @@ export const extractionSchema = z.object({
   confianza: z.record(z.string(), z.number().min(0).max(1)), // campo -> confianza 0-1
   camposFaltantes: z.array(z.string()),
   textoCrudo: z.string(),
-  archivoPath: z.string(),
+  // El archivo original no se guarda (va directo a Gemini); solo sus datos.
+  archivoNombre: z.string(),
+  archivoTipo: z.string(),
+  archivoBytes: z.number().int().nonnegative(),
   createdAt: z.custom<Timestamp>(),
 });
 

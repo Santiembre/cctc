@@ -13,20 +13,6 @@ export const activityListQuerySchema = z.object({
   sort: z.enum(["fechaAsc", "fechaDesc", "titulo"]).default("fechaAsc"),
 });
 
-export const signedUrlRequestSchema = z.object({
-  fileName: z.string().min(1).max(255),
-  contentType: z.enum([
-    "application/pdf",
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-  ]),
-});
-
-export const extractRequestSchema = z.object({
-  filePath: z.string().min(1),
-});
-
 export const publishRequestSchema = z.object({
   draftId: z.string().min(1),
 });

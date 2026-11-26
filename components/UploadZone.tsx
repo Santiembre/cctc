@@ -13,19 +13,29 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type FileType = "pdf" | "image";
+
+const BYTES_POR_KB = 1024;
+const BYTES_POR_MB = BYTES_POR_KB * BYTES_POR_KB;
+/** Igual que TAMANO_MAXIMO_MB en lib/ai/gemini.ts (no se importa para no meter el SDK al bundle del navegador). */
+const TAMANO_MAXIMO_MB_POR_DEFECTO = 10;
+const PROGRESO_COMPLETO = 100;
 type UploadStatus = "idle" | "uploading" | "processing" | "success" | "error";
 
 interface UploadZoneProps {
-  onUploadComplete: (filePath: string, fileType: FileType) => void;
+  /**
+   * Recibe el archivo ya validado y lo procesa (lo manda a la IA).
+   * Si la promesa falla, la zona muestra el error y deja reintentar.
+   */
+  onProcessFile: (file: File, fileType: FileType) => Promise<void>;
   onError?: (message: string) => void;
   maxSizeMB?: number;
   acceptedTypes?: string[];
 }
 
 export function UploadZone({
-  onUploadComplete,
+  onProcessFile,
   onError,
-  maxSizeMB = 10,
+  maxSizeMB = TAMANO_MAXIMO_MB_POR_DEFECTO,
   acceptedTypes = ["application/pdf", "image/jpeg", "image/png", "image/webp"],
 }: UploadZoneProps) {
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -38,7 +48,7 @@ export function UploadZone({
       setError("Tipo de archivo no permitido. Use PDF, JPG, PNG o WebP.");
       return null;
     }
-    if (f.size > maxSizeMB * 1024 * 1024) {
+    if (f.size > maxSizeMB * BYTES_POR_MB) {
       setError(`El archivo excede ${maxSizeMB} MB.`);
       return null;
     }
@@ -77,33 +87,13 @@ export function UploadZone({
   }, []);
 
   const uploadFile = async (file: File, type: FileType) => {
-    setStatus("uploading");
-    setProgress(0);
+    // El archivo va directo a la IA (sin Cloud Storage): no hay progreso de subida que medir.
+    setStatus("processing");
+    setProgress(PROGRESO_COMPLETO);
     setError(null);
 
     try {
-      // 1. Obtener URL firmada
-      const response = await fetch("/api/upload/signed-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: file.name, contentType: file.type }),
-      });
-      if (!response.ok) throw new Error("Error obteniendo URL de subida");
-      const { uploadUrl, filePath } = await response.json();
-
-      // 2. Subir a Cloud Storage
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!uploadResponse.ok) throw new Error("Error subiendo archivo");
-
-      setStatus("processing");
-      setProgress(100);
-
-      // 3. Notificar al padre
-      onUploadComplete(filePath, type);
+      await onProcessFile(file, type);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Error subiendo archivo";
@@ -156,7 +146,7 @@ export function UploadZone({
             <div className="min-w-0">
               <p className="font-medium truncate">{file.name}</p>
               <p className="text-sm text-muted-foreground">
-                {(file.size / 1024 / 1024).toFixed(1)} MB
+                {(file.size / BYTES_POR_MB).toFixed(1)} MB
               </p>
             </div>
           </div>

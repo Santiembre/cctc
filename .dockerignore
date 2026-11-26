@@ -11,6 +11,7 @@ npm-debug.log*
 # Nunca meter credenciales en la imagen
 .env*
 *-key.json
+cloudcomputingproject-*.json
 service-account*.json
 *.pem
 

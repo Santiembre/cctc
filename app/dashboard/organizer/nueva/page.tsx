@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ExtractionReviewForm } from "@/components/ExtractionReviewForm";
 import { UploadZone } from "@/components/UploadZone";
 import { Button } from "@/components/ui/button";
+import { hydrateTimestamps } from "@/lib/firebase/hydrate";
 import type { Activity } from "@/lib/types/activity";
 
 // Convertir Activity (con Timestamp) a ReviewFormData (con strings)
@@ -59,25 +60,28 @@ export default function NuevaActividadPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const handleUploadComplete = async (filePath: string, _fileType: string) => {
-    try {
-      const response = await fetch("/api/activities/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filePath }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Error en extracción");
+  // El archivo va directo a la API (multipart) y de ahí a Gemini; no pasa por Cloud Storage.
+  // Si falla, se lanza el error para que UploadZone lo muestre y permita reintentar.
+  const handleProcessFile = async (file: File, _fileType: string) => {
+    setError("");
+    const formData = new FormData();
+    formData.append("archivo", file);
 
-      setExtractionData({
-        draftId: result.draftId,
-        actividad: result.actividad,
-        confianza: result.confianza,
-      });
-      setStep("review");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error procesando archivo");
-    }
+    const response = await fetch("/api/activities/extract", {
+      method: "POST",
+      body: formData,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Error en extracción");
+
+    // La API responde { success, data: {...} } y manda las fechas como { __timestamp }.
+    const { draftId, actividad, confianza } = result.data;
+    setExtractionData({
+      draftId,
+      actividad: hydrateTimestamps<Partial<Activity>>(actividad),
+      confianza,
+    });
+    setStep("review");
   };
 
   const handlePublish = async (_data: any) => {
@@ -120,10 +124,7 @@ export default function NuevaActividadPage() {
         </div>
 
         <div className="rounded-lg border p-6">
-          <UploadZone
-            onUploadComplete={handleUploadComplete}
-            onError={setError}
-          />
+          <UploadZone onProcessFile={handleProcessFile} />
 
           {error && (
             <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 text-sm flex items-center gap-2">

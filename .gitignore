@@ -37,6 +37,7 @@ yarn-error.log*
 # credenciales de Google Cloud / Firebase (next_steps.md §1.4)
 firebase-admin-key.json
 *-key.json
+cloudcomputingproject-*.json
 service-account*.json
 
 # vercel
