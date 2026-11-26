@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { reviewFormSchema } from "@/lib/review-form";
+
+const LIMITE_POR_PAGINA_MAX = 50;
+const LIMITE_POR_PAGINA_DEFAULT = 20;
 
 export const activityListQuerySchema = z.object({
   q: z.string().optional(),
@@ -9,12 +13,20 @@ export const activityListQuerySchema = z.object({
   fechaHasta: z.string().datetime().optional(),
   costo: z.enum(["gratis", "pago"]).optional(),
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(50).default(20),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(LIMITE_POR_PAGINA_MAX)
+    .default(LIMITE_POR_PAGINA_DEFAULT),
   sort: z.enum(["fechaAsc", "fechaDesc", "titulo"]).default("fechaAsc"),
 });
 
 export const publishRequestSchema = z.object({
   draftId: z.string().min(1),
+  // Lo que el organizador revisó en el formulario; los campos obligatorios se validan aquí
+  // también, porque el catálogo depende de ellos (p. ej. fechaInicio para ordenar).
+  actividad: reviewFormSchema,
 });
 
 export const favoriteRequestSchema = z.object({

@@ -12,6 +12,7 @@ npm-debug.log*
 .env*
 *-key.json
 cloudcomputingproject-*.json
+GeminiApi.json
 service-account*.json
 *.pem
 

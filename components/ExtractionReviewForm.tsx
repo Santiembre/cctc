@@ -2,8 +2,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Calendar, Clock, Link2, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
-import { z } from "zod";
+import {
+  Controller,
+  type FieldErrors,
+  useFieldArray,
+  useForm,
+} from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,48 +19,65 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { type ReviewFormData, reviewFormSchema } from "@/lib/review-form";
 import { cn } from "@/lib/utils";
 
-// Esquema simplificado para el formulario de revisión - usa strings para fechas
-const sesionFormSchema = z.object({
-  fecha: z.string().min(1, "Fecha requerida"),
-  horaInicio: z.string().min(1, "Hora inicio requerida"),
-  horaFin: z.string().min(1, "Hora fin requerida"),
-  tema: z.string().optional(),
-  sede: z.string().optional(),
-  enlaceVirtual: z.string().url().optional().or(z.literal("")),
-});
+const CONFIANZA_ALTA = 0.8;
+const CONFIANZA_MEDIA = 0.5;
+const PORCENTAJE = 100;
+const DIAS_DURACION_CURSO_DEFAULT = 60;
+const MS_POR_DIA = 24 * 60 * 60 * 1000; // eslint-disable-line ts-patterns/no-magic-numbers -- horas, minutos, segundos, ms
 
-const horarioFormSchema = z.object({
-  diaSemana: z.number().int().min(0).max(6),
-  horaInicio: z.string().min(1, "Hora inicio requerida"),
-  horaFin: z.string().min(1, "Hora fin requerida"),
-  sede: z.string().optional(),
-  enlaceVirtual: z.string().url().optional().or(z.literal("")),
-});
+const ETIQUETAS_CAMPO: Readonly<Record<string, string>> = {
+  titulo: "Título",
+  tipo: "Tipo",
+  area: "Área",
+  descripcion: "Descripción",
+  modalidad: "Modalidad",
+  sede: "Sede",
+  enlaceVirtual: "Enlace virtual",
+  cupo: "Cupo máximo",
+  costo: "Costo",
+  moneda: "Moneda",
+  requisitos: "Requisitos",
+  enlaceInscripcion: "Enlace de inscripción",
+  etiquetas: "Etiquetas",
+  sesiones: "Sesiones",
+  horarios: "Horarios",
+  fechaInicio: "Fecha de inicio",
+  fechaFin: "Fecha de fin",
+};
 
-// Esquema base SIN defaults para inferencia de tipos correcta
-const baseReviewFormSchema = z.object({
-  titulo: z.string().min(3, "Mínimo 3 caracteres").max(120),
-  tipo: z.enum(["taller", "curso", "club"]),
-  area: z.string().min(2, "Mínimo 2 caracteres").max(60),
-  descripcion: z.string().min(10, "Mínimo 10 caracteres").max(5000),
-  modalidad: z.enum(["presencial", "virtual", "hibrido"]),
-  sede: z.string().max(120).optional(),
-  enlaceVirtual: z.string().url().optional().or(z.literal("")),
-  cupo: z.number().int().positive().optional(),
-  costo: z.number().nonnegative(),
-  moneda: z.enum(["MXN", "USD", "GRATIS"]),
-  requisitos: z.string().max(2000).optional(),
-  enlaceInscripcion: z.string().url().optional().or(z.literal("")),
-  etiquetas: z.array(z.string()).optional(),
-  sesiones: z.array(sesionFormSchema).optional(),
-  horarios: z.array(horarioFormSchema).optional(),
-  fechaInicio: z.string().min(1, "Fecha inicio requerida"),
-  fechaFin: z.string().optional(),
-});
+/** Primer mensaje dentro de un error de react-hook-form (los arreglos anidan un error por fila). */
+function primerMensaje(valor: unknown): string | undefined {
+  if (typeof valor !== "object" || valor === null) return undefined;
+  if (
+    "message" in valor &&
+    typeof valor.message === "string" &&
+    valor.message
+  ) {
+    return valor.message;
+  }
+  // "ref" apunta al elemento del DOM: no contiene mensajes y puede ser circular.
+  return Object.entries(valor)
+    .filter(([clave]) => clave !== "ref")
+    .map(([, hijo]) => primerMensaje(hijo))
+    .find(Boolean);
+}
 
-type ReviewFormData = z.infer<typeof baseReviewFormSchema>;
+function listarErrores(
+  errores: FieldErrors<ReviewFormData>,
+): readonly string[] {
+  return Object.entries(errores).map(
+    ([campo, error]) =>
+      `${ETIQUETAS_CAMPO[campo] ?? campo}: ${primerMensaje(error) ?? "valor inválido"}`,
+  );
+}
+
+/** Un <input type="number"> entrega texto; vacío significa "sin valor". */
+function numeroOVacio(texto: string): number | undefined {
+  return texto ? Number(texto) : undefined;
+}
 
 interface ExtractionReviewFormProps {
   initialData: Partial<ReviewFormData>;
@@ -75,7 +96,7 @@ export function ExtractionReviewForm({
   const isCursoTaller = tipo === "curso" || tipo === "taller";
 
   const form = useForm<ReviewFormData>({
-    resolver: zodResolver(baseReviewFormSchema),
+    resolver: zodResolver(reviewFormSchema),
     defaultValues: {
       titulo: "",
       tipo: "taller",
@@ -98,7 +119,7 @@ export function ExtractionReviewForm({
         },
       ],
       horarios: [{ diaSemana: 1, horaInicio: "16:00", horaFin: "18:00" }],
-      fechaInicio: new Date().toISOString().split("T")[0],
+      fechaInicio: "",
       fechaFin: "",
       ...initialData,
     },
@@ -119,14 +140,16 @@ export function ExtractionReviewForm({
     fields: etiquetasFields,
     append: appendEtiqueta,
     remove: removeEtiqueta,
+    // useFieldArray solo tipa arreglos de objetos y etiquetas es string[].
+    // eslint-disable-next-line ts-patterns/no-explicit-any
   } = useFieldArray({ control: form.control as any, name: "etiquetas" });
 
   const getConfidence = (field: string) => confidence[field] ?? 1;
   const getConfidenceClass = (field: string) => {
     const c = getConfidence(field);
-    if (c >= 0.8)
+    if (c >= CONFIANZA_ALTA)
       return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-    if (c >= 0.5)
+    if (c >= CONFIANZA_MEDIA)
       return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
     return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
   };
@@ -151,7 +174,7 @@ export function ExtractionReviewForm({
       ]);
       form.setValue(
         "fechaFin",
-        new Date(Date.now() + 60 * 24 * 60 * 60 * 1000)
+        new Date(Date.now() + DIAS_DURACION_CURSO_DEFAULT * MS_POR_DIA)
           .toISOString()
           .split("T")[0],
       );
@@ -209,7 +232,7 @@ export function ExtractionReviewForm({
                   variant="secondary"
                 >
                   <AlertCircle className="h-3 w-3 mr-1" />
-                  Confianza: {Math.round(getConfidence("titulo") * 100)}%
+                  Confianza: {Math.round(getConfidence("titulo") * PORCENTAJE)}%
                 </Badge>
               )}
             </div>
@@ -322,6 +345,8 @@ export function ExtractionReviewForm({
                 min="0"
                 step="1"
                 {...field}
+                value={field.value ?? ""}
+                onChange={(e) => field.onChange(numeroOVacio(e.target.value))}
                 placeholder="0"
               />
             </div>
@@ -696,6 +721,8 @@ export function ExtractionReviewForm({
             type="button"
             variant="outline"
             size="sm"
+            // Mismo caso que arriba: el campo es string[] aunque useFieldArray espere objetos.
+            // eslint-disable-next-line ts-patterns/no-explicit-any
             onClick={() => appendEtiqueta("" as any)}
           >
             + Etiqueta
@@ -720,6 +747,8 @@ export function ExtractionReviewForm({
                 type="number"
                 min="1"
                 {...field}
+                value={field.value ?? ""}
+                onChange={(e) => field.onChange(numeroOVacio(e.target.value))}
                 placeholder="Sin límite"
               />
             </div>
@@ -800,6 +829,24 @@ export function ExtractionReviewForm({
           )}
         />
       </div>
+
+      {Boolean(form.formState.submitCount) &&
+        Boolean(listarErrores(form.formState.errors).length) && (
+          <div
+            role="alert"
+            className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+          >
+            <p className="font-medium flex items-center gap-1">
+              <AlertCircle className="h-4 w-4" />
+              Completa estos campos antes de publicar:
+            </p>
+            <ul className="mt-1 list-disc pl-6">
+              {listarErrores(form.formState.errors).map((mensaje) => (
+                <li key={mensaje}>{mensaje}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
       <div className="flex justify-end gap-3 pt-4 border-t">
         <Button

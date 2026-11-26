@@ -38,6 +38,7 @@ yarn-error.log*
 firebase-admin-key.json
 *-key.json
 cloudcomputingproject-*.json
+GeminiApi.json
 service-account*.json
 
 # vercel

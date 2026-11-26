@@ -7,46 +7,53 @@ import { ExtractionReviewForm } from "@/components/ExtractionReviewForm";
 import { UploadZone } from "@/components/UploadZone";
 import { Button } from "@/components/ui/button";
 import { hydrateTimestamps } from "@/lib/firebase/hydrate";
+import type { ReviewFormData } from "@/lib/review-form";
 import type { Activity } from "@/lib/types/activity";
 
-// Convertir Activity (con Timestamp) a ReviewFormData (con strings)
+interface ConToDate {
+  toDate(): Date;
+}
+
+function tieneToDate(valor: unknown): valor is ConToDate {
+  return typeof valor === "object" && valor !== null && "toDate" in valor;
+}
+
+/** Timestamp → "YYYY-MM-DD" para un <input type="date">; undefined si no es fecha. */
+function fechaAString(valor: unknown): string | undefined {
+  if (!tieneToDate(valor)) return undefined;
+  const [fecha] = valor.toDate().toISOString().split("T");
+  return fecha;
+}
+
+// Activity (fechas como Timestamp) → valores iniciales del formulario (fechas como string).
+// Las fechas que faltan se omiten para que el formulario las pida.
 function convertToReviewFormData(
   activity: Partial<Activity>,
-): Partial<Record<string, any>> {
-  const result: Partial<Record<string, any>> = { ...activity };
-
-  // Convertir fechas a strings YYYY-MM-DD
-  if (
-    activity.fechaInicio &&
-    typeof activity.fechaInicio === "object" &&
-    "toDate" in activity.fechaInicio
-  ) {
-    result.fechaInicio = activity.fechaInicio
-      .toDate()
-      .toISOString()
-      .split("T")[0];
-  }
-  if (
-    activity.fechaFin &&
-    typeof activity.fechaFin === "object" &&
-    "toDate" in activity.fechaFin
-  ) {
-    result.fechaFin = activity.fechaFin.toDate().toISOString().split("T")[0];
-  }
-
-  // Convertir sesiones (usar type guard)
-  const act = activity as any;
-  if (act.sesiones) {
-    result.sesiones = act.sesiones.map((s: any) => ({
-      ...s,
-      fecha:
-        s.fecha && typeof s.fecha === "object" && "toDate" in s.fecha
-          ? s.fecha.toDate().toISOString().split("T")[0]
-          : s.fecha,
-    }));
-  }
-
-  return result;
+): Partial<ReviewFormData> {
+  const datos: Record<string, unknown> = { ...activity };
+  const fechaInicio = fechaAString(datos.fechaInicio);
+  const fechaFin = fechaAString(datos.fechaFin);
+  const sesiones = Array.isArray(datos.sesiones)
+    ? datos.sesiones.map((sesion: unknown) => {
+        if (typeof sesion !== "object" || sesion === null) return sesion;
+        const fecha =
+          "fecha" in sesion ? fechaAString(sesion.fecha) : undefined;
+        return { ...sesion, fecha: fecha ?? "" };
+      })
+    : undefined;
+  const {
+    fechaInicio: _inicio,
+    fechaFin: _fin,
+    sesiones: _sesiones,
+    ...resto
+  } = datos;
+  // Los datos vienen de Firestore sin validar; el formulario los valida con reviewFormSchema.
+  return {
+    ...resto,
+    ...(fechaInicio ? { fechaInicio } : {}),
+    ...(fechaFin ? { fechaFin } : {}),
+    ...(sesiones ? { sesiones } : {}),
+  } as Partial<ReviewFormData>;
 }
 
 export default function NuevaActividadPage() {
@@ -84,7 +91,7 @@ export default function NuevaActividadPage() {
     setStep("review");
   };
 
-  const handlePublish = async (_data: any) => {
+  const handlePublish = async (datos: ReviewFormData): Promise<void> => {
     setSubmitting(true);
     setError("");
     try {
@@ -93,12 +100,17 @@ export default function NuevaActividadPage() {
       const response = await fetch("/api/activities/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draftId: extractionData.draftId }),
+        body: JSON.stringify({
+          draftId: extractionData.draftId,
+          actividad: datos,
+        }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Error publicando");
 
-      router.push(`/dashboard/organizer/actividades?published=${result.id}`);
+      router.push(
+        `/dashboard/organizer/actividades?published=${result.data.id}`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error publicando");
     } finally {
@@ -175,7 +187,7 @@ export default function NuevaActividadPage() {
             ? convertToReviewFormData(extractionData.actividad)
             : {}
         }
-        confidence={extractionData!.confianza}
+        confidence={extractionData?.confianza ?? {}}
         onSubmit={handlePublish}
         isSubmitting={submitting}
       />
