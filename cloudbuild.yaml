@@ -1,0 +1,39 @@
+# Build de la imagen con las variables públicas de Firebase (next_steps.md §4.1).
+#
+# Uso:
+#   gcloud builds submit --config cloudbuild.yaml --substitutions=\
+#   _FIREBASE_API_KEY=AIza...,_FIREBASE_MESSAGING_SENDER_ID=123456789,_FIREBASE_APP_ID=1:123456789:web:abc...
+#
+# Los valores NEXT_PUBLIC_* son públicos (terminan en el JS del navegador);
+# los secretos de Firebase Admin NO van aquí, van en Secret Manager (§4.2).
+
+substitutions:
+  _REGION: us-central1
+  _REPO: hub-aprendizaje
+  _SERVICE: hub-aprendizaje
+  _FIREBASE_API_KEY: ""
+  _FIREBASE_AUTH_DOMAIN: ${PROJECT_ID}.firebaseapp.com
+  _FIREBASE_STORAGE_BUCKET: ${PROJECT_ID}.appspot.com
+  _FIREBASE_MESSAGING_SENDER_ID: ""
+  _FIREBASE_APP_ID: ""
+  _APP_URL: https://${PROJECT_ID}.web.app
+
+options:
+  dynamicSubstitutions: true
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest
+      - --build-arg=NEXT_PUBLIC_FIREBASE_API_KEY=${_FIREBASE_API_KEY}
+      - --build-arg=NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_FIREBASE_AUTH_DOMAIN}
+      - --build-arg=NEXT_PUBLIC_FIREBASE_PROJECT_ID=${PROJECT_ID}
+      - --build-arg=NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${_FIREBASE_STORAGE_BUCKET}
+      - --build-arg=NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${_FIREBASE_MESSAGING_SENDER_ID}
+      - --build-arg=NEXT_PUBLIC_FIREBASE_APP_ID=${_FIREBASE_APP_ID}
+      - --build-arg=NEXT_PUBLIC_APP_URL=${_APP_URL}
+      - .
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest

@@ -1,0 +1,19 @@
+node_modules
+.next
+out
+.git
+.gitignore
+.hermes
+*.tsbuildinfo
+npm-debug.log*
+.pnpm-debug.log*
+
+# Nunca meter credenciales en la imagen
+.env*
+*-key.json
+service-account*.json
+*.pem
+
+Dockerfile
+.dockerignore
+cloudbuild.yaml

@@ -1,13 +1,11 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { ActivityCard } from '@/components/ActivityCard';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { Loader2, FileText, ArrowLeft, CheckCircle, Trash2, Edit } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import type { Activity } from '@/lib/types/activity';
+"use client";
+import { ArrowLeft, FileText, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ActivityCard } from "@/components/ActivityCard";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface OrganizerActivity {
   id: string;
@@ -21,22 +19,26 @@ interface OrganizerActivity {
 export default function ActividadesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const published = searchParams.get('published');
+  const published = searchParams.get("published");
   const [activities, setActivities] = useState<OrganizerActivity[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'publicadas' | 'archivadas'>('publicadas');
+  const [activeTab, setActiveTab] = useState<"publicadas" | "archivadas">(
+    "publicadas",
+  );
 
   useEffect(() => {
     if (published) {
       // Show success toast
     }
-    fetch(`/api/activities?organizadorId=me&estado=${activeTab === 'publicadas' ? 'publicado' : 'archivado'}`)
-      .then(r => r.json())
-      .then(data => {
+    fetch(
+      `/api/activities?organizadorId=me&estado=${activeTab === "publicadas" ? "publicado" : "archivado"}`,
+    )
+      .then((r) => r.json())
+      .then((data) => {
         setActivities(data.activities || []);
         setLoading(false);
       });
-  }, [activeTab]);
+  }, [activeTab, published]);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -47,12 +49,16 @@ export default function ActividadesPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold">Mis actividades</h1>
-            <p className="text-muted-foreground">Gestiona tus actividades publicadas y archivadas</p>
+            <p className="text-muted-foreground">
+              Gestiona tus actividades publicadas y archivadas
+            </p>
           </div>
         </div>
-        <Link href="/dashboard/organizer/nueva" className="inline-flex items-center justify-center rounded-4xl border border-transparent bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30">
-          <FileText className="h-4 w-4 mr-2" />
-          + Nueva actividad
+        <Link
+          href="/dashboard/organizer/nueva"
+          className="inline-flex items-center justify-center rounded-4xl border border-transparent bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+        >
+          <FileText className="h-4 w-4 mr-2" />+ Nueva actividad
         </Link>
       </div>
 
@@ -64,18 +70,29 @@ export default function ActividadesPage() {
 
         <TabsContent value="publicadas">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
           ) : activities.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground mb-4">No tienes actividades publicadas</p>
-              <Link href="/dashboard/organizer/nueva" className="inline-flex items-center justify-center rounded-4xl border border-transparent bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30">
+              <p className="text-muted-foreground mb-4">
+                No tienes actividades publicadas
+              </p>
+              <Link
+                href="/dashboard/organizer/nueva"
+                className="inline-flex items-center justify-center rounded-4xl border border-transparent bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+              >
                 Crear primera actividad
               </Link>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {activities.map(activity => (
-                <ActivityCard key={activity.id} activity={activity as any} variant="compact" />
+              {activities.map((activity) => (
+                <ActivityCard
+                  key={activity.id}
+                  activity={activity as any}
+                  variant="compact"
+                />
               ))}
             </div>
           )}
@@ -83,15 +100,23 @@ export default function ActividadesPage() {
 
         <TabsContent value="archivadas">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
           ) : activities.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No tienes actividades archivadas</p>
+              <p className="text-muted-foreground">
+                No tienes actividades archivadas
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {activities.map(activity => (
-                <ActivityCard key={activity.id} activity={activity as any} variant="compact" />
+              {activities.map((activity) => (
+                <ActivityCard
+                  key={activity.id}
+                  activity={activity as any}
+                  variant="compact"
+                />
               ))}
             </div>
           )}

@@ -1,15 +1,17 @@
-'use client';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ActivityGrid } from '@/components/ActivityGrid';
-import { FavoritesList } from '@/components/FavoritesList';
-import { RemindersList } from '@/components/RemindersList';
+"use client";
+import { ActivityGrid } from "@/components/ActivityGrid";
+import { FavoritesList } from "@/components/FavoritesList";
+import { RemindersList } from "@/components/RemindersList";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function DashboardStudent() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Mi panel</h1>
-        <p className="text-muted-foreground">Gestiona tus actividades guardadas y recordatorios</p>
+        <p className="text-muted-foreground">
+          Gestiona tus actividades guardadas y recordatorios
+        </p>
       </div>
 
       <Tabs defaultValue="favoritos" className="w-full">

@@ -1,8 +1,5 @@
-'use client';
-import { cn } from '@/lib/utils';
-import * as DialogPrimitive from '@base-ui/react/dialog';
-import { X } from 'lucide-react';
-import { forwardRef, type HTMLAttributes } from 'react';
+"use client";
+import * as DialogPrimitive from "@base-ui/react/dialog";
 
 const DialogRoot = DialogPrimitive.Dialog.Root;
 const DialogTrigger = DialogPrimitive.Dialog.Trigger;
@@ -15,4 +12,15 @@ const DialogDescription = DialogPrimitive.Dialog.Description;
 const DialogViewport = DialogPrimitive.Dialog.Viewport;
 const createDialogHandle = DialogPrimitive.Dialog.createHandle;
 
-export { DialogRoot, DialogTrigger, DialogPortal, DialogBackdrop, DialogPopup, DialogClose, DialogTitle, DialogDescription, DialogViewport, createDialogHandle };
+export {
+  DialogRoot,
+  DialogTrigger,
+  DialogPortal,
+  DialogBackdrop,
+  DialogPopup,
+  DialogClose,
+  DialogTitle,
+  DialogDescription,
+  DialogViewport,
+  createDialogHandle,
+};

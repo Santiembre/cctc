@@ -1,17 +1,20 @@
-import { initializeApp, getApps, cert, type App } from 'firebase-admin/app';
-import { getAuth, type Auth } from 'firebase-admin/auth';
-import { getFirestore, type Firestore } from 'firebase-admin/firestore';
-import { getStorage, type Storage } from 'firebase-admin/storage';
+import { type App, cert, getApps, initializeApp } from "firebase-admin/app";
+import { type Auth, getAuth } from "firebase-admin/auth";
+import { type Firestore, getFirestore } from "firebase-admin/firestore";
+import { getStorage, type Storage } from "firebase-admin/storage";
 
 function getServiceAccount() {
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(
+    /\\n/g,
+    "\n",
+  );
+
   if (!projectId || !clientEmail || !privateKey) {
     return null;
   }
-  
+
   return { projectId, clientEmail, privateKey };
 }
 
@@ -22,13 +25,15 @@ let adminStorage: Storage | null = null;
 
 function initializeAdmin() {
   if (adminApp) return;
-  
+
   const serviceAccount = getServiceAccount();
   if (!serviceAccount) {
-    console.warn('Firebase Admin credentials not configured. Admin features will not work.');
+    console.warn(
+      "Firebase Admin credentials not configured. Admin features will not work.",
+    );
     return;
   }
-  
+
   if (getApps().length === 0) {
     adminApp = initializeApp({ credential: cert(serviceAccount) });
   } else {
@@ -44,7 +49,7 @@ function ensureAdmin() {
     initializeAdmin();
   }
   if (!adminApp) {
-    throw new Error('Firebase Admin not initialized. Check credentials.');
+    throw new Error("Firebase Admin not initialized. Check credentials.");
   }
 }
 
@@ -70,8 +75,16 @@ export function getAdminApp(): App {
 
 // For backward compatibility - lazy getters
 export const admin = {
-  get auth(): Auth { return getAdminAuth(); },
-  get db(): Firestore { return getAdminDb(); },
-  get storage(): Storage { return getAdminStorage(); },
-  get app(): App { return getAdminApp(); },
+  get auth(): Auth {
+    return getAdminAuth();
+  },
+  get db(): Firestore {
+    return getAdminDb();
+  },
+  get storage(): Storage {
+    return getAdminStorage();
+  },
+  get app(): App {
+    return getAdminApp();
+  },
 };

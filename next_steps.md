@@ -69,6 +69,10 @@ gcloud ai models list --region=us-central1 --filter="displayName:gemini-2.5-flas
 ## 2. Configurar Variables de Entorno
 
 ### 2.1 Editar `.env.local` con credenciales reales
+Parte de la plantilla del repo (`.env.local` y `firebase-admin-key.json` están en `.gitignore`):
+```bash
+cp .env.example .env.local
+```
 ```env
 # Firebase Client (desde Firebase Console > Project Settings)
 NEXT_PUBLIC_FIREBASE_API_KEY=AIza...
@@ -124,18 +128,39 @@ gcloud artifacts repositories create hub-aprendizaje \
   --location=us-central1 \
   --repository-format=docker
 
-# Build con Cloud Build
-gcloud builds submit --tag us-central1-docker.pkg.dev/hub-aprendizaje-fes/hub-aprendizaje/hub-aprendizaje:latest .
+# Build con Cloud Build (usa Dockerfile + cloudbuild.yaml)
+# Las variables NEXT_PUBLIC_* se incrustan en el JS del navegador durante el build,
+# por eso se pasan aquí como substitutions y NO en `gcloud run deploy`.
+gcloud builds submit --config cloudbuild.yaml --project=hub-aprendizaje-fes \
+  --substitutions=_FIREBASE_API_KEY=AIza...,_FIREBASE_MESSAGING_SENDER_ID=123456789,_FIREBASE_APP_ID=1:123456789:web:abc...
 ```
 
-### 4.2 Desplegar a Cloud Run
+### 4.2 Guardar los secretos de Firebase Admin en Secret Manager
+```bash
+gcloud services enable secretmanager.googleapis.com
+
+# Desde el JSON descargado en §1.4
+node -e "process.stdout.write(require('./firebase-admin-key.json').private_key)" \
+  | gcloud secrets create firebase-admin-key --data-file=-
+node -e "process.stdout.write(require('./firebase-admin-key.json').client_email)" \
+  | gcloud secrets create firebase-admin-email --data-file=-
+
+# La service account del servicio necesita leerlos
+gcloud projects add-iam-policy-binding hub-aprendizaje-fes \
+  --member="serviceAccount:hub-admin@hub-aprendizaje-fes.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+### 4.3 Desplegar a Cloud Run
+Corre con la service account `hub-admin`, así Vertex AI (Gemini) y Storage usan sus roles de §1.5.
 ```bash
 gcloud run deploy hub-aprendizaje \
   --image=us-central1-docker.pkg.dev/hub-aprendizaje-fes/hub-aprendizaje/hub-aprendizaje:latest \
   --platform=managed \
   --region=us-central1 \
+  --service-account=hub-admin@hub-aprendizaje-fes.iam.gserviceaccount.com \
   --allow-unauthenticated \
-  --set-env-vars="NEXT_PUBLIC_FIREBASE_API_KEY=...,FIREBASE_ADMIN_PROJECT_ID=...,GOOGLE_CLOUD_PROJECT=...,GOOGLE_CLOUD_LOCATION=us-central1,GEMINI_MODEL=gemini-2.5-flash,STORAGE_BUCKET=..." \
+  --set-env-vars="FIREBASE_ADMIN_PROJECT_ID=hub-aprendizaje-fes,GOOGLE_CLOUD_PROJECT=hub-aprendizaje-fes,GOOGLE_CLOUD_LOCATION=us-central1,GEMINI_MODEL=gemini-2.5-flash,STORAGE_BUCKET=hub-aprendizaje-fes.appspot.com" \
   --set-secrets="FIREBASE_ADMIN_PRIVATE_KEY=firebase-admin-key:latest,FIREBASE_ADMIN_CLIENT_EMAIL=firebase-admin-email:latest" \
   --memory=512Mi \
   --cpu=1 \
@@ -143,7 +168,7 @@ gcloud run deploy hub-aprendizaje \
   --max-instances=100
 ```
 
-### 4.3 Obtener URL del servicio
+### 4.4 Obtener URL del servicio
 ```bash
 CLOUD_RUN_URL=$(gcloud run services describe hub-aprendizaje --region=us-central1 --format='value(status.url)')
 echo "Cloud Run URL: $CLOUD_RUN_URL"
@@ -166,8 +191,11 @@ NEXT_PUBLIC_APP_URL=https://hub-aprendizaje-fes.web.app
 ```
 
 **Opción B: Firebase Hosting + Cloud Run (para SSR)**
+
+`firebase.json` ya reescribe todo (`**`) al servicio `hub-aprendizaje` de Cloud Run en `us-central1`,
+y sirve `public/` directo desde la CDN. Funciona con el login porque la app usa la cookie
+`__session`, la única que Firebase Hosting reenvía a Cloud Run.
 ```bash
-# Configurar rewrites en firebase.json para pasar a Cloud Run
 firebase deploy --only hosting
 ```
 
@@ -230,9 +258,12 @@ hey -n 1000 -c 50 https://hub-aprendizaje-fes.web.app/api/activities
 ## 9. Configuración de Producción Adicional
 
 ### 9.1 Headers de seguridad (ya en next.config.ts)
-```typescript
-// CSP, HSTS, etc. via middleware o next.config.ts headers()
-```
+`next.config.ts` envía HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
+y `Permissions-Policy` en todas las rutas.
+
+**Pendiente: CSP.** No se agregó porque el login de Firebase (popup de Google, `apis.google.com`,
+iframe de `*.firebaseapp.com`) necesita una política probada con las credenciales reales;
+una CSP mal armada rompe el inicio de sesión.
 
 ### 9.2 CORS para APIs
 ```typescript

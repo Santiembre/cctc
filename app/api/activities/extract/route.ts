@@ -1,10 +1,10 @@
-import { getAdminDb, getAdminStorage } from '@/lib/firebase/admin';
-import { VertexAI } from '@google-cloud/vertexai';
-import { validateRequest, extractRequestSchema } from '@/lib/api/validation';
-import { success, handleApiError } from '@/lib/api/response';
-import { getServerSession } from '@/lib/api/auth';
-import { NextRequest } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
+import { VertexAI } from "@google-cloud/vertexai";
+import { Timestamp } from "firebase-admin/firestore";
+import type { NextRequest } from "next/server";
+import { getServerSession } from "@/lib/api/auth";
+import { handleApiError, success } from "@/lib/api/response";
+import { extractRequestSchema, validateRequest } from "@/lib/api/validation";
+import { getAdminDb, getAdminStorage } from "@/lib/firebase/admin";
 
 const SYSTEM_INSTRUCTION = `Eres un asistente que extrae información de carteles y PDFs de actividades académicas (talleres, cursos, clubes) para una universidad. 
 Extrae TODOS los campos posibles. Si un campo no aparece, omítelo (no lo inventes). 
@@ -37,16 +37,16 @@ function getGenerativeModel() {
   const project = process.env.GOOGLE_CLOUD_PROJECT;
   const location = process.env.GOOGLE_CLOUD_LOCATION;
   const model = process.env.GEMINI_MODEL;
-  
+
   if (!project || !location || !model) {
-    throw new Error('Vertex AI credentials not configured');
+    throw new Error("Vertex AI credentials not configured");
   }
-  
+
   const vertexAI = new VertexAI({ project, location });
   return vertexAI.getGenerativeModel({
     model,
     generationConfig: {
-      responseMimeType: 'application/json',
+      responseMimeType: "application/json",
     },
     systemInstruction: SYSTEM_INSTRUCTION,
   });
@@ -55,8 +55,12 @@ function getGenerativeModel() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession();
-    if (!session || session.role !== 'organizador' || !session.organizadorAprobado) {
-      return handleApiError(new Error('FORBIDDEN'));
+    if (
+      !session ||
+      session.role !== "organizador" ||
+      !session.organizadorAprobado
+    ) {
+      return handleApiError(new Error("FORBIDDEN"));
     }
 
     const body = await request.json();
@@ -67,43 +71,53 @@ export async function POST(request: NextRequest) {
     const bucket = adminStorage.bucket(process.env.STORAGE_BUCKET!);
     const file = bucket.file(filePath);
     const [buffer] = await file.download();
-    const mimeType = filePath.endsWith('.pdf') ? 'application/pdf' : 
-                     filePath.match(/\.(jpg|jpeg)$/i) ? 'image/jpeg' :
-                     filePath.match(/\.png$/i) ? 'image/png' : 'image/webp';
+    const mimeType = filePath.endsWith(".pdf")
+      ? "application/pdf"
+      : filePath.match(/\.(jpg|jpeg)$/i)
+        ? "image/jpeg"
+        : filePath.match(/\.png$/i)
+          ? "image/png"
+          : "image/webp";
 
     // Call Gemini
     const generativeModel = getGenerativeModel();
     const result = await generativeModel.generateContent({
       contents: [
         {
-          role: 'user',
+          role: "user",
           parts: [
-            { inlineData: { mimeType, data: buffer.toString('base64') } },
-            { text: 'Extrae la información de esta actividad y devuelve el JSON según el esquema.' },
+            { inlineData: { mimeType, data: buffer.toString("base64") } },
+            {
+              text: "Extrae la información de esta actividad y devuelve el JSON según el esquema.",
+            },
           ],
         },
       ],
     });
 
-    const rawText = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const rawText =
+      result.response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     let extracted: any;
     try {
       extracted = JSON.parse(rawText);
     } catch {
-      return handleApiError(new Error('Error parseando respuesta de IA'));
+      return handleApiError(new Error("Error parseando respuesta de IA"));
     }
 
     // Convert date strings to Timestamps
     const convertDates = (obj: any): any => {
       if (!obj) return obj;
       const converted = { ...obj };
-      for (const key of ['fechaInicio', 'fechaFin']) {
-        if (converted[key]) converted[key] = Timestamp.fromDate(new Date(converted[key]));
+      for (const key of ["fechaInicio", "fechaFin"]) {
+        if (converted[key])
+          converted[key] = Timestamp.fromDate(new Date(converted[key]));
       }
       if (converted.sesiones) {
         converted.sesiones = converted.sesiones.map((s: any) => ({
           ...s,
-          fecha: s.fecha ? Timestamp.fromDate(new Date(s.fecha)) : Timestamp.now(),
+          fecha: s.fecha
+            ? Timestamp.fromDate(new Date(s.fecha))
+            : Timestamp.now(),
         }));
       }
       return converted;
@@ -111,36 +125,62 @@ export async function POST(request: NextRequest) {
 
     extracted = convertDates(extracted);
     extracted.organizadorId = session.uid;
-    extracted.organizadorNombre = session.profile?.nombre || session.email || 'Organizador';
-    extracted.estado = 'borrador';
+    extracted.organizadorNombre =
+      session.profile?.nombre || session.email || "Organizador";
+    extracted.estado = "borrador";
     extracted.createdAt = Timestamp.now();
     extracted.updatedAt = Timestamp.now();
 
     // Calculate confidence scores (simplified - in production use logprobs)
     const confidence: Record<string, number> = {};
-    const allFields = ['titulo', 'tipo', 'area', 'descripcion', 'modalidad', 'sede', 'enlaceVirtual', 'cupo', 'costo', 'moneda', 'requisitos', 'enlaceInscripcion', 'etiquetas', 'sesiones', 'horarios', 'fechaInicio', 'fechaFin'];
-    allFields.forEach(f => confidence[f] = extracted[f] ? 0.85 : 0);
+    const allFields = [
+      "titulo",
+      "tipo",
+      "area",
+      "descripcion",
+      "modalidad",
+      "sede",
+      "enlaceVirtual",
+      "cupo",
+      "costo",
+      "moneda",
+      "requisitos",
+      "enlaceInscripcion",
+      "etiquetas",
+      "sesiones",
+      "horarios",
+      "fechaInicio",
+      "fechaFin",
+    ];
+    for (const f of allFields) {
+      confidence[f] = extracted[f] ? 0.85 : 0;
+    }
 
     // Save extraction record
     const adminDb = getAdminDb();
-    const extractionRef = adminDb.collection('extracciones').doc();
+    const extractionRef = adminDb.collection("extracciones").doc();
     await extractionRef.set({
       actividad: extracted,
       confianza: confidence,
-      camposFaltantes: allFields.filter(f => !extracted[f]),
+      camposFaltantes: allFields.filter((f) => !extracted[f]),
       textoCrudo: rawText,
       archivoPath: filePath,
       createdAt: Timestamp.now(),
     });
 
     // Create draft activity
-    const draftRef = adminDb.collection('actividades').doc();
+    const draftRef = adminDb.collection("actividades").doc();
     await draftRef.set({
       ...extracted,
       extractionId: extractionRef.id,
     });
 
-    return success({ extractionId: extractionRef.id, draftId: draftRef.id, actividad: extracted, confianza: confidence });
+    return success({
+      extractionId: extractionRef.id,
+      draftId: draftRef.id,
+      actividad: extracted,
+      confianza: confidence,
+    });
   } catch (err) {
     return handleApiError(err);
   }

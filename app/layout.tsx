@@ -1,23 +1,40 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono, Raleway } from 'next/font/google';
-import './globals.css';
-import { Providers } from './providers';
-import { cn } from '@/lib/utils';
+import type { Metadata } from "next";
+import { Geist, Geist_Mono, Raleway } from "next/font/google";
+import "./globals.css";
+import { cn } from "@/lib/utils";
+import { Providers } from "./providers";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-const raleway = Raleway({ subsets: ['latin'], variable: '--font-sans' });
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
-const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
+const raleway = Raleway({ subsets: ["latin"], variable: "--font-sans" });
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: 'Hub de Aprendizaje FES Acatlán',
-  description: 'Catálogo centralizado de talleres, cursos y clubes con carga asistida por IA',
+  title: "Hub de Aprendizaje FES Acatlán",
+  description:
+    "Catálogo centralizado de talleres, cursos y clubes con carga asistida por IA",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="es" className={cn('h-full antialiased', geistSans.variable, geistMono.variable, 'font-sans', raleway.variable)}>
+    <html
+      lang="es"
+      className={cn(
+        "h-full antialiased",
+        geistSans.variable,
+        geistMono.variable,
+        "font-sans",
+        raleway.variable,
+      )}
+    >
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>

@@ -1,12 +1,11 @@
-'use client';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Loader2, CheckCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+"use client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CheckCircle, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const profileSchema = z.object({
   nombre: z.string().min(2).max(100),
@@ -19,19 +18,19 @@ export function UserProfileForm() {
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { nombre: '', carrera: '' },
-    mode: 'onChange',
+    defaultValues: { nombre: "", carrera: "" },
+    mode: "onChange",
   });
 
-  const onSubmit = async (data: z.infer<typeof profileSchema>) => {
+  const onSubmit = async (_data: z.infer<typeof profileSchema>) => {
     setSaving(true);
     try {
       // In real implementation, call API to update profile
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      console.error('Error saving profile:', err);
+      console.error("Error saving profile:", err);
     } finally {
       setSaving(false);
     }
@@ -43,12 +42,30 @@ export function UserProfileForm() {
         <h3 className="font-medium mb-4">Información personal</h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Nombre completo</label>
-            <Input {...form.register('nombre')} placeholder="Tu nombre" />
+            <label
+              htmlFor="perfil-1"
+              className="block text-sm font-medium mb-1"
+            >
+              Nombre completo
+            </label>
+            <Input
+              id="perfil-1"
+              {...form.register("nombre")}
+              placeholder="Tu nombre"
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Carrera</label>
-            <Input {...form.register('carrera')} placeholder="Tu carrera" />
+            <label
+              htmlFor="perfil-2"
+              className="block text-sm font-medium mb-1"
+            >
+              Carrera
+            </label>
+            <Input
+              id="perfil-2"
+              {...form.register("carrera")}
+              placeholder="Tu carrera"
+            />
           </div>
         </div>
       </div>
@@ -69,7 +86,7 @@ export function UserProfileForm() {
               Guardado
             </>
           ) : (
-            'Guardar cambios'
+            "Guardar cambios"
           )}
         </Button>
       </div>
