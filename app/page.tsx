@@ -20,7 +20,6 @@ interface HomePageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-// page y limit por defecto salen del mismo esquema que valida la búsqueda.
 const { page: PAGINA_INICIAL, limit: LIMITE_POR_DEFECTO } =
   activityListQuerySchema.parse({});
 
@@ -34,11 +33,9 @@ const SIN_RESULTADOS: ActivityListResult = {
   },
 };
 
-/** Carga el catálogo directo de Firestore; si falla, la página se muestra vacía con un aviso. */
 async function cargarCatalogo(
   params: Record<string, string | string[] | undefined>,
 ): Promise<{ resultado: ActivityListResult; aviso: string | null }> {
-  // ?tipo=taller&tipo=curso → se toma el primero, como hace URLSearchParams.
   const filtros = Object.fromEntries(
     Object.entries(params)
       .map(([clave, valor]) => [clave, Array.isArray(valor) ? valor[0] : valor])
@@ -107,22 +104,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <section id="actividades" className="py-8 px-4">
           <div className="max-w-7xl mx-auto">
             <FilterBar />
-            {activities.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground mb-4">
-                  No se encontraron actividades
-                </p>
-              </div>
-            ) : (
-              <div className="lg:grid lg:grid-cols-4 lg:gap-8">
-                <aside className="lg:block hidden">
-                  <FilterSidebar />
-                </aside>
-                <div className="lg:col-span-3">
-                  <CatalogGrid activities={activities} pagination={pagination} />
+            <div className="mt-6">
+              {activities.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground mb-4">
+                    No se encontraron actividades
+                  </p>
                 </div>
-              </div>
-            )}
+              ) : (
+                <CatalogGrid activities={activities} pagination={pagination} />
+              )}
+            </div>
           </div>
         </section>
       </main>

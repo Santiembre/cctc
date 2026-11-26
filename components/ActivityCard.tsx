@@ -59,12 +59,14 @@ export function ActivityCard({
             {activity.modalidad}
           </Badge>
         </div>
-        <h3 className="text-lg font-semibold text-foreground line-clamp-2">
+        <h3 className="text-lg font-semibold text-foreground line-clamp-2 overflow-hidden">
           {activity.titulo}
         </h3>
-        <p className="text-sm text-muted-foreground line-clamp-2 mt-1 flex-1">
-          {activity.descripcion}
-        </p>
+        <div className="mt-1 flex-1 min-h-0">
+          <p className="text-sm text-muted-foreground line-clamp-2 overflow-hidden">
+            {activity.descripcion}
+          </p>
+        </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-3">
           {primeraSesion && (

@@ -141,27 +141,6 @@ function FilterSection({
 
       <div>
         <label htmlFor={`${uid}-3`} className="block text-sm font-medium mb-1">
-          Área
-        </label>
-        <Select
-          value={searchParams.get("area") || ""}
-          onValueChange={(v) => onChange("area", v || "")}
-        >
-          <SelectTrigger id={`${uid}-3`}>
-            <SelectValue placeholder="Todas las áreas" />
-          </SelectTrigger>
-          <SelectContent>
-            {AREAS.map((a) => (
-              <SelectItem key={a} value={a}>
-                {a}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <label htmlFor={`${uid}-4`} className="block text-sm font-medium mb-1">
           Modalidad
         </label>
         <Select
@@ -179,37 +158,6 @@ function FilterSection({
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label
-            htmlFor={`${uid}-5`}
-            className="block text-sm font-medium mb-1"
-          >
-            Desde
-          </label>
-          <Input
-            id={`${uid}-5`}
-            type="date"
-            value={searchParams.get("fechaDesde") || ""}
-            onChange={(e) => onChange("fechaDesde", e.target.value)}
-          />
-        </div>
-        <div>
-          <label
-            htmlFor={`${uid}-6`}
-            className="block text-sm font-medium mb-1"
-          >
-            Hasta
-          </label>
-          <Input
-            id={`${uid}-6`}
-            type="date"
-            value={searchParams.get("fechaHasta") || ""}
-            onChange={(e) => onChange("fechaHasta", e.target.value)}
-          />
-        </div>
       </div>
 
       <div>
@@ -289,21 +237,6 @@ export function FilterBar() {
             </SelectContent>
           </Select>
           <Select
-            value={searchParams.get("area") || ""}
-            onValueChange={(v) => updateParam("area", v || "")}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Área" />
-            </SelectTrigger>
-            <SelectContent>
-              {AREAS.map((a) => (
-                <SelectItem key={a} value={a}>
-                  {a}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
             value={searchParams.get("modalidad") || ""}
             onValueChange={(v) => updateParam("modalidad", v || "")}
           >
@@ -318,15 +251,6 @@ export function FilterBar() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden sm:flex"
-            onClick={() => setShowDateModal(true)}
-          >
-            <Calendar className="h-4 w-4 mr-1" />
-            Fecha
-          </Button>
           {hasFilters && (
             <Button
               variant="ghost"
