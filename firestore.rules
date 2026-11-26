@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read their own profile
+    match /usuarios/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+      // Admins can read/write all
+      allow read, write: if request.auth != null && request.auth.token.rol == 'admin';
+    }
+
+    // Favorites subcollection
+    match /usuarios/{userId}/favoritos/{favId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Activities - public read for published
+    match /actividades/{activityId} {
+      allow read: if resource.data.estado == 'publicado';
+      allow create: if request.auth != null && request.auth.token.rol == 'organizador' && request.auth.token.organizadorAprobado == true;
+      allow update: if request.auth != null && 
+        (request.auth.token.rol == 'admin' || 
+         (request.auth.token.rol == 'organizador' && request.auth.token.organizadorAprobado == true && resource.data.organizadorId == request.auth.uid));
+      allow delete: if request.auth != null && request.auth.token.rol == 'admin';
+    }
+
+    // Draft activities (subcollection or same collection with estado=borrador)
+    match /actividades/{activityId} {
+      allow read: if request.auth != null && 
+        (resource.data.estado == 'borrador' && resource.data.organizadorId == request.auth.uid);
+    }
+
+    // Extractions - organizer owns their extractions
+    match /extracciones/{extractionId} {
+      allow read: if request.auth != null && resource.data.organizadorId == request.auth.uid;
+      allow create: if request.auth != null && request.auth.token.rol == 'organizador' && request.auth.token.organizadorAprobado == true;
+    }
+  }
+}

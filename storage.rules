@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Organizer uploads
+    match /uploads/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null 
+        && request.auth.uid == userId 
+        && request.auth.token.rol == 'organizador'
+        && request.auth.token.organizadorAprobado == true
+        && request.resource.size <= 10 * 1024 * 1024; // 10 MB max
+    }
+
+    // Public activity images (thumbnails, etc.)
+    match /activities/{activityId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.rol == 'admin';
+    }
+  }
+}

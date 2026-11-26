@@ -10,9 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, MapPin, Link2, AlertCircle } from 'lucide-react';
-import { Timestamp } from 'firebase/firestore';
 
-// Esquema simplificado para el formulario de revisión
+// Esquema simplificado para el formulario de revisión - usa strings para fechas
 const sesionFormSchema = z.object({
   fecha: z.string().min(1, 'Fecha requerida'),
   horaInicio: z.string().min(1, 'Hora inicio requerida'),
@@ -30,7 +29,8 @@ const horarioFormSchema = z.object({
   enlaceVirtual: z.string().url().optional().or(z.literal('')),
 });
 
-const reviewFormSchema = z.object({
+// Esquema base SIN defaults para inferencia de tipos correcta
+const baseReviewFormSchema = z.object({
   titulo: z.string().min(3, 'Mínimo 3 caracteres').max(120),
   tipo: z.enum(['taller', 'curso', 'club']),
   area: z.string().min(2, 'Mínimo 2 caracteres').max(60),
@@ -39,18 +39,18 @@ const reviewFormSchema = z.object({
   sede: z.string().max(120).optional(),
   enlaceVirtual: z.string().url().optional().or(z.literal('')),
   cupo: z.number().int().positive().optional(),
-  costo: z.number().nonnegative().default(0),
-  moneda: z.enum(['MXN', 'USD', 'GRATIS']).default('GRATIS'),
+  costo: z.number().nonnegative(),
+  moneda: z.enum(['MXN', 'USD', 'GRATIS']),
   requisitos: z.string().max(2000).optional(),
   enlaceInscripcion: z.string().url().optional().or(z.literal('')),
-  etiquetas: z.array(z.string()).default([]),
+  etiquetas: z.array(z.string()).optional(),
   sesiones: z.array(sesionFormSchema).optional(),
   horarios: z.array(horarioFormSchema).optional(),
   fechaInicio: z.string().min(1, 'Fecha inicio requerida'),
   fechaFin: z.string().optional(),
 });
 
-type ReviewFormData = z.infer<typeof reviewFormSchema>;
+type ReviewFormData = z.infer<typeof baseReviewFormSchema>;
 
 interface ExtractionReviewFormProps {
   initialData: Partial<ReviewFormData>;
@@ -64,19 +64,25 @@ export function ExtractionReviewForm({ initialData, confidence, onSubmit, isSubm
   const isCursoTaller = tipo === 'curso' || tipo === 'taller';
 
   const form = useForm<ReviewFormData>({
-    resolver: zodResolver(reviewFormSchema),
+    resolver: zodResolver(baseReviewFormSchema),
     defaultValues: {
       titulo: '',
       tipo: 'taller',
       area: '',
       descripcion: '',
       modalidad: 'presencial',
+      sede: '',
+      enlaceVirtual: '',
+      cupo: undefined,
       costo: 0,
       moneda: 'GRATIS',
+      requisitos: '',
+      enlaceInscripcion: '',
       etiquetas: [],
       sesiones: [{ fecha: new Date().toISOString().split('T')[0], horaInicio: '09:00', horaFin: '11:00' }],
       horarios: [{ diaSemana: 1, horaInicio: '16:00', horaFin: '18:00' }],
       fechaInicio: new Date().toISOString().split('T')[0],
+      fechaFin: '',
       ...initialData,
     },
     mode: 'onChange',
@@ -84,7 +90,7 @@ export function ExtractionReviewForm({ initialData, confidence, onSubmit, isSubm
 
   const { fields: sesionesFields, append: appendSesion, remove: removeSesion } = useFieldArray({ control: form.control, name: 'sesiones' });
   const { fields: horariosFields, append: appendHorario, remove: removeHorario } = useFieldArray({ control: form.control, name: 'horarios' });
-  const { fields: etiquetasFields, append: appendEtiqueta, remove: removeEtiqueta } = useFieldArray({ control: form.control, name: 'etiquetas' });
+  const { fields: etiquetasFields, append: appendEtiqueta, remove: removeEtiqueta } = useFieldArray({ control: form.control as any, name: 'etiquetas' });
 
   const getConfidence = (field: string) => confidence[field] ?? 1;
   const getConfidenceClass = (field: string) => {
@@ -98,10 +104,10 @@ export function ExtractionReviewForm({ initialData, confidence, onSubmit, isSubm
     setTipo(value as ReviewFormData['tipo']);
     form.setValue('tipo', value as ReviewFormData['tipo'], { shouldValidate: true });
     if (value === 'club') {
-      form.setValue('sesiones', undefined);
+      form.setValue('sesiones', [{ fecha: new Date().toISOString().split('T')[0], horaInicio: '09:00', horaFin: '11:00' }]);
       form.setValue('fechaFin', '');
     } else {
-      form.setValue('horarios', undefined);
+      form.setValue('horarios', [{ diaSemana: 1, horaInicio: '16:00', horaFin: '18:00' }]);
       form.setValue('fechaFin', new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     }
   };
@@ -419,7 +425,7 @@ export function ExtractionReviewForm({ initialData, confidence, onSubmit, isSubm
               </Button>
             </Badge>
           ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => appendEtiqueta('')}>
+          <Button type="button" variant="outline" size="sm" onClick={() => appendEtiqueta('' as any)}>
             + Etiqueta
           </Button>
         </div>
