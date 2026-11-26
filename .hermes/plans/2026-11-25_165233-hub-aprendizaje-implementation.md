@@ -2528,7 +2528,7 @@ import { Footer } from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: 'Hub de Aprendizaje FES Acatlán',
-  description: 'Encuentra talleres, cursos y clubes. Organizadores: sube tu PDF y la IA llena la ficha.',
+  description: 'Encuentra talleres, cursos y clubes. ¿Eres organizador?: sube tu PDF y la IA llena la ficha.',
 };
 
 interface HomePageProps {
@@ -2554,7 +2554,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               Hub de Aprendizaje <span className="text-primary">FES Acatlán</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              Tu catálogo centralizado de talleres, cursos y clubes. Organizadores: sube tu PDF o cartel y la IA llena la ficha automáticamente.
+              Tu catálogo centralizado de talleres, cursos y clubes. ¿Eres organizador?: sube tu PDF o cartel y la IA llena la ficha automáticamente.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a href="/dashboard/organizer/nueva" className="btn-primary">

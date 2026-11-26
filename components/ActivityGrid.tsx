@@ -20,21 +20,7 @@ export function ActivityGrid({
   favoriteIds = new Set(),
 }: ActivityGridProps) {
   if (activities.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground mb-4">
-          No se encontraron actividades
-        </p>
-        {showFavorites && (
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-4xl border border-transparent bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-          >
-            Explorar catálogo
-          </Link>
-        )}
-      </div>
-    );
+    return null;
   }
 
   return (

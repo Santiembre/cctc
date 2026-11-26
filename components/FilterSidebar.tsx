@@ -236,6 +236,7 @@ function FilterSection({
 export function FilterBar() {
   const searchParams = useSearchParams();
   const [_isOpen, setIsOpen] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
   const hasFilters = [
     "q",
     "tipo",
@@ -246,88 +247,157 @@ export function FilterBar() {
     "costo",
   ].some((k) => searchParams.get(k));
 
+  const handleDateRangeSubmit = (fechaDesde: string, fechaHasta: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (fechaDesde) params.set("fechaDesde", fechaDesde);
+    else params.delete("fechaDesde");
+    if (fechaHasta) params.set("fechaHasta", fechaHasta);
+    else params.delete("fechaHasta");
+    window.history.replaceState(null, "", `?${params.toString()}`);
+    setShowDateModal(false);
+  };
+
   return (
-    <div className="hidden lg:flex lg:items-center lg:gap-3 lg:p-4 lg:border-b sticky lg:top-0 lg:bg-background/95 lg:backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex-1 max-w-xs">
-        <Input
-          placeholder="Buscar actividades..."
-          value={searchParams.get("q") || ""}
-          onChange={(e) => {
-            const params = new URLSearchParams(searchParams.toString());
-            if (e.target.value) params.set("q", e.target.value);
-            else params.delete("q");
-            window.history.replaceState(null, "", `?${params.toString()}`);
-          }}
-        />
+    <>
+      <div className="hidden lg:flex lg:items-center lg:justify-center lg:gap-3 lg:p-4 lg:border-b sticky lg:top-0 lg:bg-background/95 lg:backdrop-blur supports-[backdrop-filter]:bg-background/60 w-full">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-5xl">
+          <div className="flex-1 max-w-xs sm:max-w-none">
+            <Input
+              placeholder="Buscar actividades..."
+              value={searchParams.get("q") || ""}
+              onChange={(e) => {
+                const params = new URLSearchParams(searchParams.toString());
+                if (e.target.value) params.set("q", e.target.value);
+                else params.delete("q");
+                window.history.replaceState(null, "", `?${params.toString()}`);
+              }}
+            />
+          </div>
+          <Select
+            value={searchParams.get("tipo") || ""}
+            onValueChange={(v) => updateParam("tipo", v || "")}
+          >
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIPOS.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={searchParams.get("area") || ""}
+            onValueChange={(v) => updateParam("area", v || "")}
+          >
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Área" />
+            </SelectTrigger>
+            <SelectContent>
+              {AREAS.map((a) => (
+                <SelectItem key={a} value={a}>
+                  {a}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={searchParams.get("modalidad") || ""}
+            onValueChange={(v) => updateParam("modalidad", v || "")}
+          >
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Modalidad" />
+            </SelectTrigger>
+            <SelectContent>
+              {MODALIDADES.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden sm:flex"
+            onClick={() => setShowDateModal(true)}
+          >
+            <Calendar className="h-4 w-4 mr-1" />
+            Fecha
+          </Button>
+          {hasFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => (window.location.href = window.location.pathname)}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Limpiar
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setIsOpen(true)}
+          >
+            <Filter className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <Select
-        value={searchParams.get("tipo") || ""}
-        onValueChange={(v) => updateParam("tipo", v || "")}
-      >
-        <SelectTrigger className="w-[140px]">
-          <SelectValue placeholder="Tipo" />
-        </SelectTrigger>
-        <SelectContent>
-          {TIPOS.map((t) => (
-            <SelectItem key={t} value={t}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={searchParams.get("area") || ""}
-        onValueChange={(v) => updateParam("area", v || "")}
-      >
-        <SelectTrigger className="w-[160px]">
-          <SelectValue placeholder="Área" />
-        </SelectTrigger>
-        <SelectContent>
-          {AREAS.map((a) => (
-            <SelectItem key={a} value={a}>
-              {a}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={searchParams.get("modalidad") || ""}
-        onValueChange={(v) => updateParam("modalidad", v || "")}
-      >
-        <SelectTrigger className="w-[140px]">
-          <SelectValue placeholder="Modalidad" />
-        </SelectTrigger>
-        <SelectContent>
-          {MODALIDADES.map((m) => (
-            <SelectItem key={m} value={m}>
-              {m.charAt(0).toUpperCase() + m.slice(1)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button variant="outline" size="sm" className="hidden sm:flex">
-        <Calendar className="h-4 w-4 mr-1" />
-        Fecha
-      </Button>
-      {hasFilters && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => (window.location.href = window.location.pathname)}
-        >
-          <X className="h-4 w-4 mr-1" />
-          Limpiar
-        </Button>
+
+      {showDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">Filtrar por fechas</h3>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Desde</label>
+                <Input
+                  type="date"
+                  value={searchParams.get("fechaDesde") || ""}
+                  onChange={(e) => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) params.set("fechaDesde", e.target.value);
+                    else params.delete("fechaDesde");
+                    window.history.replaceState(null, "", `?${params.toString()}`);
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Hasta</label>
+                <Input
+                  type="date"
+                  value={searchParams.get("fechaHasta") || ""}
+                  onChange={(e) => {
+                    const params = new URLSearchParams(searchParams.toString());
+                    if (e.target.value) params.set("fechaHasta", e.target.value);
+                    else params.delete("fechaHasta");
+                    window.history.replaceState(null, "", `?${params.toString()}`);
+                  }}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowDateModal(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  const desde = searchParams.get("fechaDesde") || "";
+                  const hasta = searchParams.get("fechaHasta") || "";
+                  handleDateRangeSubmit(desde, hasta);
+                }}
+              >
+                Aplicar
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
-      <Button
-        variant="outline"
-        size="icon"
-        className="lg:hidden"
-        onClick={() => setIsOpen(true)}
-      >
-        <Filter className="h-4 w-4" />
-      </Button>
-    </div>
+    </>
   );
 }
 

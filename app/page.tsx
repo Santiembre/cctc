@@ -13,7 +13,7 @@ import { serializeTimestamps } from "@/lib/serialization";
 export const metadata: Metadata = {
   title: "Hub de Aprendizaje FES Acatlán",
   description:
-    "Encuentra talleres, cursos y clubes. Organizadores: sube tu PDF y la IA llena la ficha.",
+    "Encuentra talleres, cursos y clubes. ¿Eres organizador?: sube tu PDF y la IA llena la ficha.",
 };
 
 interface HomePageProps {
@@ -84,7 +84,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
               Tu catálogo centralizado de talleres, cursos y clubes.
-              Organizadores: sube tu PDF o cartel y la IA llena la ficha
+              ¿Eres organizador?: sube tu PDF o cartel y la IA llena la ficha
               automáticamente.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -106,23 +106,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
         <section id="actividades" className="py-8 px-4">
           <div className="max-w-7xl mx-auto">
-            <div className="lg:grid lg:grid-cols-4 lg:gap-8">
-              <aside className="lg:block hidden">
-                <FilterSidebar />
-              </aside>
-              <div className="lg:col-span-3">
-                <FilterBar />
-                {aviso && (
-                  <p
-                    role="alert"
-                    className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
-                  >
-                    {aviso}
-                  </p>
-                )}
-                <CatalogGrid activities={activities} pagination={pagination} />
+            <FilterBar />
+            {activities.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground mb-4">
+                  No se encontraron actividades
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="lg:grid lg:grid-cols-4 lg:gap-8">
+                <aside className="lg:block hidden">
+                  <FilterSidebar />
+                </aside>
+                <div className="lg:col-span-3">
+                  <CatalogGrid activities={activities} pagination={pagination} />
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </main>
