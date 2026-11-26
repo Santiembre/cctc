@@ -1,6 +1,8 @@
-# Implementation Plan: Hub de Aprendizaje (Centralized Workshops/Courses/Clubs Platform with AI)
+# Plan de Implementación: Hub de Aprendizaje (Plataforma Centralizada de Talleres/Cursos/Clubes con IA)
 
-## Goal
+> **NOTA IMPORTANTE:** Todo el contenido del proyecto (código, comentarios, documentación, UI, mensajes de error, logs) debe estar en **español**.
+
+## Objetivo
 Build a complete Next.js 16+ web application for FES Acatlán that centralizes workshops, courses, and clubs with AI-assisted PDF/image upload for organizers, using shadcn/base-ui components as-is with wrapper-based customization, Firestore backend, Firebase Auth, and Gemini Flash for AI extraction.
 
 ## Current Context / Assumptions
