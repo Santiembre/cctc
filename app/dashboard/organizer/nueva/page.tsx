@@ -143,6 +143,7 @@ export default function NuevaActividadPage() {
             Crear actividad manualmente
           </Link>
         </div>
+        <div className="mt-8" />
       </div>
     );
   }

@@ -11,7 +11,7 @@ export default function PerfilPage() {
   >("perfil");
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Mi perfil</h1>
         <p className="text-muted-foreground">
