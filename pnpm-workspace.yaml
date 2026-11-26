@@ -1,3 +1,7 @@
 allowBuilds:
+  '@firebase/util@1.15.3': true
+  '@google/genai@1.52.0': true
+  '@parcel/watcher@2.6.0': true
+  protobufjs@7.6.6: true
   sharp: false
   unrs-resolver: false
